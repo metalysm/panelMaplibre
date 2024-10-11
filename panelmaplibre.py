@@ -91,7 +91,30 @@ class MapLibreLayerMap(ReactiveHTML):
                         'fill-opacity': 0.6  
                     }
                 });
+                // Add a pop-up on click
+                state.map.on('click', 'geojson-layer', (e) => {
+                    const coordinates = e.lngLat;
+                    const properties = e.features[0].properties; // GeoJSON features properties
+
+                    new maplibregl.Popup()
+                        .setLngLat(coordinates)
+                        .setHTML(`
+                            <h4>Koordinat</h4>
+                            <p>${coordinates}</p>
+                        `)
+                        .addTo(state.map);
+                });
                 state.map.resize(); 
+
+                // Change the cursor to a pointer when hovering over the layer
+                map.on('mouseenter', 'geojson-layer', () => {
+                    map.getCanvas().style.cursor = 'pointer';
+                });
+
+                map.on('mouseleave', 'geojson-layer', () => {
+                    map.getCanvas().style.cursor = '';
+                });
+            
             });
         """,
 
