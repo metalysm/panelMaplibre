@@ -132,7 +132,6 @@ class MapLibreLayerMap(ReactiveHTML):
 
 pn.extension('maplibre', template='fast')
 
-# Load your GeoJSON file
 with open('k.geojson') as f:
     geojson_layer = json.load(f)
 
