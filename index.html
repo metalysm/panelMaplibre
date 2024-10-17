@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapLibre with ArcGIS Feature Service</title>
+    <link href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
+    <script>
+        var map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://demotiles.maplibre.org/style.json', // OpenStreetMap tabanlı ücretsiz stil
+            center: [28.9784, 41.0082], // İstanbul koordinatları
+            zoom: 10
+        });
+
+        // ArcGIS Feature Service'dan veri çekme
+        fetch('https://sampleserver6.arcgisonline.com/arcgis/rest/services/Wildfire/FeatureServer/2/query?where=1%3D1&outFields=*&outSR=4326&f=geojson')
+            .then(response => response.json())
+            .then(data => {
+                // GeoJSON verisini haritaya katman olarak ekleyin
+                map.on('load', function () {
+                    map.addSource('arcgis-data', {
+                        'type': 'geojson',
+                        'data': data
+                    });
+
+                    map.addLayer({
+                        'id': 'arcgis-layer',
+                        'type': 'fill',
+                        'source': 'arcgis-data',
+                        'paint': {
+                            'fill-color': '#ff0000',
+                            'fill-opacity': 0.5
+                        }
+                    });
+                });
+            })
+            .catch(err => console.error('ArcGIS Feature Service Error:', err));
+    </script>
+</body>
+</html>

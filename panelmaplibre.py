@@ -1,154 +1,218 @@
 import param
-import json
 import panel as pn
-from panel.reactive import ReactiveHTML
 
-class MapLibreLayerMap(ReactiveHTML):
-    attribution = param.String(doc="Map source attribution.")
-    center = param.XYCoordinates(default=(28.06, 41.77), doc="The center of the map.")
-    tile_url = param.String(doc="Tile source URL")
-    zoom = param.Integer(default=13, bounds=(0, 21), doc="The map's zoom level")
-    geojson_data = param.Dict(default={}, doc="GeoJSON data to plot as a layer.")
+from panel.custom import JSComponent
 
-    _template = """
-    <div id="map" style="width: 100%; height: 100%;"></div>
+class MapLibreComponent(JSComponent):
+    attribution = param.String(doc="Tile source attribution.")
+    center = param.XYCoordinates(default=(28.9784, 41.0082), doc="The center of the map.")
+    zoom = param.Integer(default=10, bounds=(0, 21), doc="The map's zoom level.")
+    pitch = param.Integer(default=45, bounds=(0, 60), doc="The map's pitch (tilt) for 3D view.")
+    bearing = param.Integer(default=-17, bounds=(-180, 180), doc="The map's rotation.")
+    geojson_data = param.String()
+    geojson_data_2 = param.String()
+    tile_url = param.String(doc="Tile source URL with {x}, {y}, {z}.")
+    show_first_layer = param.Boolean(default=False, doc="Show or hide the first layer.")
+    show_second_layer = param.Boolean(default=False, doc="Show or hide the second layer.")
+    show_arcgis_layer = param.Boolean(default=False, doc="Show or hide the ArcGIS layer.")
+
+    _esm = """
+    import maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/+esm';
+    import mapboxGlArcgisFeatureserver from 'https://cdn.jsdelivr.net/npm/mapbox-gl-arcgis-featureserver@0.0.8/+esm'
+
+    export function render({ model, el }) {
+      const map = new maplibregl.Map({
+        container: el,
+        style: model.tile_url,
+        center: model.center,
+        zoom: model.zoom,
+        pitch: model.pitch,  // Adding pitch for 3D perspective
+        bearing: model.bearing,  // Adding bearing to rotate map
+        antialias: true
+      });
+
+      map.on('load', () => {
+        map.resize();
+        
+        map.addSource('geojson-layer', {
+          type: 'geojson',
+          data: JSON.parse(model.geojson_data),
+        });
+
+        map.addLayer({
+          id: 'geojson-layer',
+          type: 'fill',
+          source: 'geojson-layer',
+          layout: {},
+          paint: {
+            'fill-color': '#0080ff',
+            'fill-opacity': 0.5
+          },
+          visibility: model.show_first_layer ? 'visible' : 'none'
+        });
+
+        model.on('change:show_first_layer', () => {
+          const visibility = model.show_first_layer ? 'visible' : 'none';
+          map.setLayoutProperty('geojson-layer', 'visibility', visibility);
+        });
+
+        map.addSource('geojson-layer-2', {
+          type: 'geojson',
+          data: JSON.parse(model.geojson_data_2),
+        });
+
+        map.addLayer({
+          id: 'geojson-layer-2',
+          type: 'fill',
+          source: 'geojson-layer-2',
+          layout: {},
+          paint: {
+            'fill-color': '#ff0000',
+            'fill-opacity': 0.5
+          },
+          visibility: model.show_second_layer ? 'visible' : 'none'
+        });
+
+        model.on('change:show_second_layer', () => {
+          const visibility = model.show_second_layer ? 'visible' : 'none';
+          map.setLayoutProperty('geojson-layer-2', 'visibility', visibility);
+        });
+
+        const fsSourceId = 'featureserver-src';
+        const service = new mapboxGlArcgisFeatureserver(fsSourceId, map, {
+          url: 'https://portal.spatial.nsw.gov.au/server/rest/services/NSW_Administrative_Boundaries_Theme/FeatureServer/6'
+        });
+
+        map.addLayer({
+          'id': 'fill-lyr',
+          'source': fsSourceId,
+          'type': 'fill',
+          'paint': {
+            'fill-opacity': 0.5,
+            'fill-color': '#B42222'
+          },
+          visibility: model.show_arcgis_layer ? 'visible' : 'none'
+        });
+
+        function hideFsLayer () {
+          map.setLayoutProperty(fsLyrId, 'visibility', 'none')
+          service.disableRequests()
+        }
+
+        function showFsLayer () {
+          map.setLayoutProperty(fsLyrId, 'visibility', 'visible')
+          service.enableRequests()
+        }
+
+        function removeFsCompletelyFromMap () {
+          map.removeLayer(fsLyrId)
+          service.destroySource()
+        }
+
+        model.on('change:show_arcgis_layer', () => {
+          const visibility = model.show_arcgis_layer ? 'visible' : 'none';
+          map.setLayoutProperty('fill-lyr', 'visibility', visibility);
+        });
+
+        // Adding 3D buildings
+        map.addSource('openmaptiles', {
+          url: 'https://api.maptiler.com/tiles/v3/tiles.json?key=ka2CI0XYdBCZt32lmrGA',
+          type: 'vector',
+        });
+
+        map.addLayer(
+          {
+            'id': '3d-buildings',
+            'source': 'openmaptiles',
+            'source-layer': 'building',
+            'type': 'fill-extrusion',
+            'minzoom': 15,
+            'paint': {
+              'fill-extrusion-color': '#aaa',
+              'fill-extrusion-height': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                15,
+                0,
+                16,
+                ['get', 'render_height']
+              ],
+              'fill-extrusion-base': ['get', 'render_min_height'],
+              'fill-extrusion-opacity': 0.6
+            }
+          }
+        );
+      });
+
+      window.addEventListener('resize', () => {
+        map.resize();
+      });
+
+      model.on('change:center', () => {
+        map.setCenter(model.center);
+      });
+
+      model.on('change:zoom', () => {
+        map.setZoom(model.zoom);
+      });
+    }
     """
 
-    _scripts = {
-        'render': """
-            state.map = new maplibregl.Map({
-                container: map,
-                style: data.tile_url,
-                center: data.center,
-                zoom: data.zoom,
-                pitch: 45,
-                bearing: -17.6,  
-                antialias: true  
-            });
-        """,
+    _stylesheets = ['https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.css']
 
-        'after_layout': """
-            state.map.on('load', () => {
-                // Add the vector tile source for 3D buildings
-                state.map.addSource('openmaptiles', {
-                    url: 'https://api.maptiler.com/tiles/v3/tiles.json?key=ka2CI0XYdBCZt32lmrGA',
-                    type: 'vector'
-                });
+pn.extension(template='fast')
 
-                // Find the label layer to insert the 3D layer below it
-                const layers = state.map.getStyle().layers;
-                let labelLayerId;
-                for (let i = 0; i < layers.length; i++) {
-                    if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
-                        labelLayerId = layers[i].id;
-                        break;
-                    }
-                }
+with open('k.geojson', 'r', encoding='utf-8') as f:
+    geojson_data = f.read()
 
-                // Add 3D buildings layer
-                state.map.addLayer({
-                    'id': '3d-buildings',
-                    'source': 'openmaptiles',
-                    'source-layer': 'building',
-                    'type': 'fill-extrusion',
-                    'minzoom': 10,
-                    'paint': {
-                        'fill-extrusion-color': [
-                            'interpolate',
-                            ['linear'],
-                            ['get', 'render_height'],
-                            0, 'lightgray',
-                            200, 'royalblue',
-                            400, 'lightblue'
-                        ],
-                        'fill-extrusion-height': [
-                            'interpolate',
-                            ['linear'],
-                            ['zoom'],
-                            5, 0,
-                            8, ['get', 'render_height']
-                        ],
-                        'fill-extrusion-base': ['case',
-                            ['>=', ['get', 'zoom'], 16],
-                            ['get', 'render_min_height'], 0
-                        ]
-                    },
-                }, labelLayerId);
+with open('ilce.geojson', 'r', encoding='utf-8') as f:
+    geojson_data_2 = f.read()
 
-                // Add GeoJSON source and layer
-                state.map.addSource('geojson-source', {
-                    'type': 'geojson',
-                    'data': data.geojson_data
-                });
-
-                // Add the GeoJSON layer (e.g., a fill layer)
-                state.map.addLayer({
-                    'id': 'geojson-layer',
-                    'type': 'fill',
-                    'source': 'geojson-source',
-                    'paint': {
-                        'fill-color': '#FF0000', 
-                        'fill-opacity': 0.6  
-                    }
-                });
-                // Add a pop-up on click
-                state.map.on('click', 'geojson-layer', (e) => {
-                    const coordinates = e.lngLat;
-                    const properties = e.features[0].properties; // GeoJSON features properties
-
-                    new maplibregl.Popup()
-                        .setLngLat(coordinates)
-                        .setHTML(`
-                            <h4>Koordinat</h4>
-                            <p>${coordinates}</p>
-                        `)
-                        .addTo(state.map);
-                });
-                state.map.resize(); 
-
-                // Change the cursor to a pointer when hovering over the layer
-                map.on('mouseenter', 'geojson-layer', () => {
-                    map.getCanvas().style.cursor = 'pointer';
-                });
-
-                map.on('mouseleave', 'geojson-layer', () => {
-                    map.getCanvas().style.cursor = '';
-                });
-            
-            });
-        """,
-
-        'geojson_data': """
-            if (state.map.getSource('geojson-source')) {
-                state.map.getSource('geojson-source').setData(data.geojson_data);
-            }
-        """
-    }
-
-    _extension_name = 'maplibre'
-
-    __css__ = ['https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.css']
-    __javascript__ = ['https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.js']
-
-pn.extension('maplibre', template='fast')
-
-with open('k.geojson') as f:
-    geojson_layer = json.load(f)
-
-# Create the MapLibre layer map
-layermap = MapLibreLayerMap(
-    attribution='',
-    geojson_data=geojson_layer,
-    tile_url='https://api.maptiler.com/maps/basic-v2/style.json?key=ka2CI0XYdBCZt32lmrGA',
-    zoom=int(8),
-    center=(28.8, 41.1), 
-    sizing_mode='stretch_both'
+map_component = MapLibreComponent(
+    attribution='Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    geojson_data=geojson_data,
+    geojson_data_2=geojson_data_2,
+    tile_url="https://api.maptiler.com/maps/basic-v2/style.json?key=ka2CI0XYdBCZt32lmrGA",
+    # center=(28.9784, 41.0082),
+    center=(151.1, -33.5),
+    zoom=10,
+    pitch=45, 
+    bearing=-17,
+    sizing_mode='stretch_both',
+    min_height=500
 )
 
-# Display the map
+description = pn.pane.Markdown(
+    "## İstanbul İlçe Haritası\n\nBu harita İstanbul ilçelerinin GeoJSON verisiyle hazırlanmıştır.",
+    sizing_mode="stretch_width"
+)
+
+toggle_button = pn.widgets.Toggle(name='ilk katman', button_type='primary')
+toggle_button_2 = pn.widgets.Toggle(name='İlçe Sınırları', button_type='primary')
+toggle_button_arcgis = pn.widgets.Toggle(name='ArcGIS Katmanı', button_type='primary')
+
+def toggle_layer(event):
+    map_component.show_first_layer = event.new
+
+def toggle_layer_2(event):
+    map_component.show_second_layer = event.new
+
+def toggle_arcgis_layer(event):
+    map_component.show_arcgis_layer = event.new
+
+toggle_button.param.watch(toggle_layer, 'value')
+toggle_button_2.param.watch(toggle_layer_2, 'value')
+toggle_button_arcgis.param.watch(toggle_arcgis_layer, 'value')
+
 pn.Column(
+    description,
     pn.Row(
-        layermap.servable(),
+        map_component,
         sizing_mode='stretch_both'
-    )
-)
+    ),
+    toggle_button,
+    toggle_button_2,
+    toggle_button_arcgis,
+    sizing_mode='stretch_both'
+).servable()
