@@ -145,6 +145,10 @@ class MapLibreComponent(JSComponent):
         );
       });
 
+      model.on('change:tile_url', () => {
+        map.setStyle(model.tile_url);
+      });
+
       window.addEventListener('resize', () => {
         map.resize();
       });
@@ -169,13 +173,19 @@ with open('k.geojson', 'r', encoding='utf-8') as f:
 with open('ilce.geojson', 'r', encoding='utf-8') as f:
     geojson_data_2 = f.read()
 
+map_styles = {
+    'Basic': "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+    'Positron': "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+    'Dark Matter': "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+}
+
 map_component = MapLibreComponent(
     attribution='Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     geojson_data=geojson_data,
     geojson_data_2=geojson_data_2,
-    tile_url="https://api.maptiler.com/maps/basic-v2/style.json?key=ka2CI0XYdBCZt32lmrGA",
-    # center=(28.9784, 41.0082),
-    center=(151.1, -33.5),
+    tile_url= map_styles['Basic'],
+    center=(28.9784, 41.0082),
+    # center=(151.1, -33.5),
     zoom=10,
     pitch=45, 
     bearing=-17,
@@ -191,6 +201,8 @@ description = pn.pane.Markdown(
 toggle_button = pn.widgets.Toggle(name='ilk katman', button_type='primary')
 toggle_button_2 = pn.widgets.Toggle(name='İlçe Sınırları', button_type='primary')
 toggle_button_arcgis = pn.widgets.Toggle(name='ArcGIS Katmanı', button_type='primary')
+map_style_dropdown = pn.widgets.Select(name='Harita Stili', options=list(map_styles.keys()), value='Basic')
+
 
 def toggle_layer(event):
     map_component.show_first_layer = event.new
@@ -201,12 +213,16 @@ def toggle_layer_2(event):
 def toggle_arcgis_layer(event):
     map_component.show_arcgis_layer = event.new
 
+def update_map_style(event):
+    map_component.tile_url = map_styles[event.new]
+
 toggle_button.param.watch(toggle_layer, 'value')
 toggle_button_2.param.watch(toggle_layer_2, 'value')
 toggle_button_arcgis.param.watch(toggle_arcgis_layer, 'value')
+map_style_dropdown.param.watch(update_map_style, 'value')
 
 pn.Column(
-    description,
+    # description,
     pn.Row(
         map_component,
         sizing_mode='stretch_both'
@@ -214,5 +230,6 @@ pn.Column(
     toggle_button,
     toggle_button_2,
     toggle_button_arcgis,
+    map_style_dropdown,
     sizing_mode='stretch_both'
 ).servable()
