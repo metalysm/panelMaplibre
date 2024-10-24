@@ -120,6 +120,12 @@ class MapLibreComponent(JSComponent):
           type: 'vector',
         });
 
+        map_styles = {
+            'Basic': "https://api.maptiler.com/maps/basic-v2/style.json?key=ka2CI0XYdBCZt32lmrGA",
+            'Positron': "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+            'Dark Matter': "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+        }
+
         map.addLayer(
           {
             'id': '3d-buildings',
@@ -143,10 +149,6 @@ class MapLibreComponent(JSComponent):
             }
           }
         );
-      });
-
-      model.on('change:tile_url', () => {
-        map.setStyle(model.tile_url);
       });
 
       window.addEventListener('resize', () => {
@@ -174,7 +176,7 @@ with open('ilce.geojson', 'r', encoding='utf-8') as f:
     geojson_data_2 = f.read()
 
 map_styles = {
-    'Basic': "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+    'Basic': "https://api.maptiler.com/maps/basic-v2/style.json?key=ka2CI0XYdBCZt32lmrGA",
     'Positron': "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     'Dark Matter': "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
 }
@@ -201,7 +203,7 @@ description = pn.pane.Markdown(
 toggle_button = pn.widgets.Toggle(name='ilk katman', button_type='primary')
 toggle_button_2 = pn.widgets.Toggle(name='İlçe Sınırları', button_type='primary')
 toggle_button_arcgis = pn.widgets.Toggle(name='ArcGIS Katmanı', button_type='primary')
-map_style_dropdown = pn.widgets.Select(name='Harita Stili', options=list(map_styles.keys()), value='Basic')
+map_style_dropdown = pn.widgets.Select(name='Harita Stili', options=list(map_styles.keys()), value='Positron')
 
 
 def toggle_layer(event):
@@ -222,7 +224,7 @@ toggle_button_arcgis.param.watch(toggle_arcgis_layer, 'value')
 map_style_dropdown.param.watch(update_map_style, 'value')
 
 pn.Column(
-    # description,
+    description,
     pn.Row(
         map_component,
         sizing_mode='stretch_both'
