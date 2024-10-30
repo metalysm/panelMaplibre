@@ -19,7 +19,7 @@ class MapLibreComponent(JSComponent):
 
     _esm = """
     import maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/+esm';
-    import mapboxGlArcgisFeatureserver from 'https://cdn.jsdelivr.net/npm/mapbox-gl-arcgis-featureserver@0.0.8/+esm'
+    import mapboxGlArcgisFeatureserver from 'https://cdn.jsdelivr.net/npm/mapbox-gl-arcgis-featureserver@0.0.8/+esm';
 
     export function render({ model, el }) {
       const map = new maplibregl.Map({
@@ -31,6 +31,56 @@ class MapLibreComponent(JSComponent):
         bearing: model.bearing,  // Adding bearing to rotate map
         antialias: true
       });
+
+      const controlsContainer = document.createElement('div');
+      controlsContainer.style.position = 'absolute';
+      controlsContainer.style.top = '10px';
+      controlsContainer.style.left = '10px';
+      controlsContainer.style.zIndex = '1';
+      controlsContainer.style.backgroundColor = 'white';
+      controlsContainer.style.padding = '2px';
+      controlsContainer.style.borderRadius = '3px';
+      //controlsContainer.style.width = '150px';
+      //controlsContainer.style.height = '50px';
+
+      const firstLayerButton = document.createElement('button');
+      firstLayerButton.textContent = 'İlk Katman';
+      firstLayerButton.onclick = () => {
+        model.show_first_layer = !model.show_first_layer;
+      };
+      controlsContainer.appendChild(firstLayerButton);
+
+      const secondLayerButton = document.createElement('button');
+      secondLayerButton.textContent = 'İlçe Sınırları';
+      secondLayerButton.onclick = () => {
+        model.show_second_layer = !model.show_second_layer;
+      };
+      controlsContainer.appendChild(secondLayerButton);
+
+      const arcgisLayerButton = document.createElement('button');
+      arcgisLayerButton.textContent = 'ArcGIS Katmanı';
+      arcgisLayerButton.onclick = () => {
+        model.show_arcgis_layer = !model.show_arcgis_layer;
+      };
+      controlsContainer.appendChild(arcgisLayerButton);
+
+      const styleDropdown = document.createElement('select');
+      ['Basic', 'Positron', 'Dark Matter'].forEach(style => {
+        const option = document.createElement('option');
+        option.value = style;
+        option.text = style;
+        styleDropdown.add(option);
+      });
+      styleDropdown.onchange = (event) => {
+        model.tile_url = event.target.value === 'Basic'
+          ? "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+          : event.target.value === 'Positron'
+          ? "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+          : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+      };
+      controlsContainer.appendChild(styleDropdown);
+
+      el.appendChild(controlsContainer);
 
       map.on('load', () => {
         const addLayers = () => {
@@ -199,29 +249,29 @@ map_component = MapLibreComponent(
 #     sizing_mode="stretch_width"
 # )
 
-toggle_button = pn.widgets.Toggle(name='İlk katman', button_type='primary')
-toggle_button_2 = pn.widgets.Toggle(name='İlçe Sınırları', button_type='primary')
-toggle_button_arcgis = pn.widgets.Toggle(name='ArcGIS Katmanı', button_type='primary')
-map_style_dropdown = pn.widgets.Select(name='Harita Stili', options=list(map_styles.keys()), value='Basic')
+# toggle_button = pn.widgets.Toggle(name='İlk katman', button_type='primary')
+# toggle_button_2 = pn.widgets.Toggle(name='İlçe Sınırları', button_type='primary')
+# toggle_button_arcgis = pn.widgets.Toggle(name='ArcGIS Katmanı', button_type='primary')
+# map_style_dropdown = pn.widgets.Select(name='Harita Stili', options=list(map_styles.keys()), value='Basic')
 
 
-def toggle_layer(event):
-    map_component.show_first_layer = event.new
+# def toggle_layer(event):
+#     map_component.show_first_layer = event.new
 
-def toggle_layer_2(event):
-    map_component.show_second_layer = event.new
+# def toggle_layer_2(event):
+#     map_component.show_second_layer = event.new
 
-def toggle_arcgis_layer(event):
-    map_component.show_arcgis_layer = event.new
+# def toggle_arcgis_layer(event):
+#     map_component.show_arcgis_layer = event.new
 
-def update_map_style(event):
-    map_component.tile_url = map_styles[event.new]
+# def update_map_style(event):
+#     map_component.tile_url = map_styles[event.new]
 
-# butonlar
-toggle_button.param.watch(toggle_layer, 'value')
-toggle_button_2.param.watch(toggle_layer_2, 'value')
-toggle_button_arcgis.param.watch(toggle_arcgis_layer, 'value')
-map_style_dropdown.param.watch(update_map_style, 'value')
+# # butonlar
+# toggle_button.param.watch(toggle_layer, 'value')
+# toggle_button_2.param.watch(toggle_layer_2, 'value')
+# toggle_button_arcgis.param.watch(toggle_arcgis_layer, 'value')
+# map_style_dropdown.param.watch(update_map_style, 'value')
 
 pn.Column(
     # description,
@@ -229,9 +279,9 @@ pn.Column(
         map_component,
         sizing_mode='stretch_both'
     ),
-    toggle_button,
-    toggle_button_2,
-    toggle_button_arcgis,
-    map_style_dropdown,
+    # toggle_button,
+    # toggle_button_2,
+    # toggle_button_arcgis,
+    # map_style_dropdown,
     sizing_mode='stretch_both'
 ).servable()
