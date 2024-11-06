@@ -2,6 +2,50 @@ import param
 import panel as pn
 
 from panel.custom import JSComponent
+import requests
+
+token_url = "https://akomcbs.ibb.istanbul/geoportal/sharing/rest/generateToken"
+username = "akomays"
+password = "LV!ak1Qc"
+
+# Set token request parameters
+params = {
+    'username': username,
+    'password': password,
+    'client': 'referer',  # Or 'referer' , 'requestip'
+    'referer': 'https://akomcbs.ibb.istanbul/server/rest/services/Hosted/sensor/FeatureServer/0',
+    'f': 'json'
+}
+
+response = requests.post(token_url, data=params)
+if response.status_code == 200 and "token" in response.json():
+    token = response.json()["token"]
+    print("Generated Token:", token)
+else:
+    print("Error generating token:", response.json())
+
+
+url = "https://akomcbs.ibb.istanbul/server/rest/services/Hosted/sensor/FeatureServer/0"
+params = {
+    'username': username,
+    'password': password,
+    "token": token,
+    "where": "1=1",
+    "outFields": "*",
+    "f": "json"
+}
+
+response = requests.get(url, params=params)
+data = response.json()
+
+# Yanıtın "features" dizisinde olup olmadığını kontrol edin
+if "features" in data and response.status_code == 200:
+    features = data["features"]
+    for feature in features:
+        print(feature)
+else:
+    print("Beklenen formatta özellik verisi yok:", data)
+
 
 class MapLibreComponent(JSComponent):
     # attribution = param.String(doc="Tile source attribution.")
@@ -11,7 +55,9 @@ class MapLibreComponent(JSComponent):
     bearing = param.Integer(default=-17, bounds=(-180, 180), doc="The map's rotation.")
     geojson_data = param.String()
     geojson_data_2 = param.String()
+    token = param.String(doc="Token for ArcGIS layer.")
     tile_url = param.String(doc="Tile source URL with {x}, {y}, {z}.")
+    arcgis_url = param.String(doc="arcgis url")
     show_first_layer = param.Boolean(default=False, doc="Show or hide the first layer.")
     show_second_layer = param.Boolean(default=False, doc="Show or hide the second layer.")
     show_arcgis_layer = param.Boolean(default=False, doc="Show or hide the ArcGIS layer.")
@@ -71,6 +117,7 @@ class MapLibreComponent(JSComponent):
         option.text = style;
         styleDropdown.add(option);
       });
+      
       styleDropdown.onchange = (event) => {
         model.tile_url = event.target.value === 'Basic'
           ? "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
@@ -120,22 +167,41 @@ class MapLibreComponent(JSComponent):
                 });
             }
 
-            if (!map.getSource('featureserver-src')) {
-                const fsSourceId = 'featureserver-src';
-                const service = new mapboxGlArcgisFeatureserver(fsSourceId, map, {
-                    url: 'https://portal.spatial.nsw.gov.au/server/rest/services/NSW_Administrative_Boundaries_Theme/FeatureServer/6'
-                });
+        // Token üretme ve ArcGIS katmanını ekleme
+        fetch('https://akomcbs.ibb.istanbul/geoportal/sharing/rest/generateToken', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            username: 'burak.demir',
+            password: 'Superman37',
+            client: 'referer',
+            referer: 'https://akomcbs.ibb.istanbul/server/rest/services/Hosted/sensor/FeatureServer/0',
+            f: 'json'
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.token) {
+            console.log("Generated Token:", data.token);
 
-                map.addLayer({
-                    'id': 'fill-lyr',
-                    'source': fsSourceId,
-                    'type': 'fill',
-                    'paint': {
-                        'fill-opacity': 0.5,
-                        'fill-color': '#B42222'
-                    }
-                });
-            }
+            // ArcGIS özellik katmanını ekleme
+            const fsSourceId = 'featureserver-src';
+            new mapboxGlArcgisFeatureserver(fsSourceId, map, {
+                url: `${model.arcgis_url}?token=${data.token}`
+            });
+            map.addLayer({
+                id: 'fill-lyr',
+                source: fsSourceId,
+                type: 'fill',
+                paint: { 'fill-opacity': 0.5, 'fill-color': '#B42222' }
+            });
+          } else {
+            console.error("Token oluşturulamadı:", data);
+          }
+        })
+        .catch(error => console.error("Token alma hatası:", error));
 
             if (!map.getSource('openmaptiles')) {
                 map.addSource('openmaptiles', {
@@ -174,10 +240,7 @@ class MapLibreComponent(JSComponent):
             map.setLayoutProperty('fill-lyr', 'visibility', model.show_arcgis_layer ? 'visible' : 'none');
         };
 
-        // İlk katman eklenir
         addLayers();
-
-        // Stil değişikliği yapıldığında katmanları yeniden ekleme
         model.on('change:tile_url', () => {
             map.setStyle(model.tile_url);
             map.on('styledata', () => {
@@ -237,6 +300,7 @@ map_component = MapLibreComponent(
     tile_url= map_styles['Basic'],
     center=(28.9784, 41.0082),
     # center=(151.1, -33.5),
+    arcgis_url = url,
     zoom=10,
     pitch=45, 
     bearing=-17,
