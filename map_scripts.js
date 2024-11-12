@@ -113,7 +113,7 @@ export function render({ model, el }) {
                         type: "circle",
                         source: "trailheads",
                         paint: {
-                            "circle-color": "#000",
+                            "circle-color": "#45a6b7",
                             "circle-stroke-width": 0.5,
                             "circle-stroke-color": "white",
                         }
@@ -125,7 +125,8 @@ export function render({ model, el }) {
                 .catch(error => {
                     console.error("ArcGIS katmanı yüklenirken hata oluştu:", error);
                 });
-        } else if (map.getSource("trailheads")) {
+        } 
+        else if (map.getSource("trailheads")) {
             // Eğer kaynak zaten eklenmişse, sadece görünürlüğü ayarla
             map.setLayoutProperty("arcgis-layer", "visibility", model.show_arcgis_layer ? "visible" : "none");
         }
@@ -186,9 +187,9 @@ export function render({ model, el }) {
       map.setLayoutProperty('geojson-layer-2', 'visibility', model.show_second_layer ? 'visible' : 'none');
     });
 
-    model.on('change:show_arcgis_layer', () => {
-      map.setLayoutProperty('arcgis-layer', 'visibility', model.show_arcgis_layer ? 'visible' : 'none');
-    });
+    // model.on('change:show_arcgis_layer', () => {
+    //   map.setLayoutProperty('arcgis-layer', 'visibility', model.show_arcgis_layer ? 'visible' : 'none');
+    // });
 
   });
 }
