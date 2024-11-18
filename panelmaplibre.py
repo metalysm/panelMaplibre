@@ -53,6 +53,30 @@ except ValueError:
     print("Response is not JSON. Response text:", response.text)
 
 
+url2 = "https://akomcbs.ibb.istanbul/server/rest/services/Hosted/depremler/FeatureServer/0/query"
+params = {
+    'username': username,
+    'password': password,
+    "token": token,
+    "where": "1=1",
+    "outFields": "*",
+    "f": "json",
+}
+
+# Use the token to fetch data
+response2 = requests.get(url2, params=params)
+
+# Check if response is JSON or HTML
+try:
+    data = response2.json()
+    if "features" not in data:
+        print("Expected data format is not found in response2:", data)
+        
+except ValueError:
+    # If JSON parsing fails, print the text to see the HTML response
+    print("Response2 is not JSON. Response2 text:", response2.text)
+
+
 class MapLibreComponent(JSComponent):
     # attribution = param.String(doc="Tile source attribution.")
     center = param.XYCoordinates(default=(28.9784, 41.0082), doc="The center of the map.")
@@ -67,6 +91,7 @@ class MapLibreComponent(JSComponent):
     show_first_layer = param.Boolean(default=False, doc="Show or hide the first layer.")
     show_second_layer = param.Boolean(default=False, doc="Show or hide the second layer.")
     show_arcgis_layer = param.Boolean(default=False, doc="Show or hide the ArcGIS layer.")
+    show_arcgis_layer2 = param.Boolean(default=False, doc="Show or hide the ArcGIS layer 2.")
     show_3d_layer = param.Boolean(default=False, doc="Show or hide the 3d layer.")
 
     _esm = Path("map_scripts.js")
